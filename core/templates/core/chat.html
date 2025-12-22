@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <title>Dr. Pato Chat</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <style>
+        .navbar { background-color: #87CEEB; border-bottom: 5px dashed #4682B4; border-radius: 0 0 15px 15px; }
+        .navbar-brand { color: #FF69B4; font-weight: bold; font-size: 1.5em; }
+        .sidebar { width: 300px; background-color: #98FB98; padding: 10px; overflow-y: auto; height: calc(100vh - 56px); position: fixed; left: 0; top: 56px; border-right: 5px dashed #32CD32; border-radius: 0 15px 15px 0; }
+        .chat-panel { margin-left: 300px; display: flex; flex-direction: column; height: calc(100vh - 56px); }
+        .messages { flex: 1; padding: 10px; overflow-y: auto; display: flex; flex-direction: column; background-image: url('/media/ui_images/chat.png'); background-repeat: repeat; background-size: 195px 195px; background-color: rgba(255, 255, 255, 0.8); border: 5px dashed #00CED1; border-radius: 15px; }
+        .message { margin-bottom: 10px; max-width: 70%; border-radius: 10px; }
+        .user { align-self: flex-start; background-color: #FFFACD; padding: 8px 12px; border: 3px dashed #FFD700; border-radius: 15px; }
+        .assistant { align-self: flex-end; background-color: #F0E68C; padding: 8px 12px; border: 3px dashed #FFA500; border-radius: 15px; display: flex; align-items: center; }
+        .assistant img { margin-right: 10px; }
+        .session-item { display: flex; justify-content: space-between; align-items: center; padding: 8px; border: 3px dashed #87CEEB; background-color: #F0F8FF; margin-bottom: 5px; border-radius: 10px; }
+        .session-link { text-decoration: none; color: #333; flex: 1; }
+        .dropdown-menu { min-width: 100px; }
+        .input-group { border: 5px dashed #4682B4; padding: 10px; background-color: #E0FFFF; border-radius: 15px; }
+        .btn-primary { background-color: #4682B4; border-color: #4682B4; border-radius: 10px; }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-light">
+        <div class="container-fluid">
+            <span class="navbar-brand mb-0 h1" style="color:#8B5A2B;">
+  Dr. Pato - Potato Disease Assistant
+</span>
+
+            <div class="d-flex">
+                <a href="{% url 'logout' %}" class="btn btn-outline-secondary btn-sm">Logout</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="sidebar">
+        <button class="btn btn-success w-100 mb-3" onclick="window.location.href='{% url 'start_new_session' %}'">New Session</button>
+        <div id="sessions-list">
+            {% for session in sessions %}
+            <div class="session-item">
+                <a href="{% url 'chat_session' session.id %}" class="session-link">{{ session.title }}</a>
+                <div class="dropdown">
+                    <button class="btn btn-sm" type="button" data-bs-toggle="dropdown">
+                        &#8230;
+                    </button>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="#" onclick="renameSession({{ session.id }}, '{{ session.title }}')">Rename</a></li>
+                        <li><a class="dropdown-item text-danger" href="#" onclick="confirmDelete({{ session.id }}, '{{ session.title }}')">Delete</a></li>
+                    </ul>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="chat-panel">
+        <div class="messages" id="messages">
+            {% if current_session %}
+            {% for message in messages %}
+            <div class="message {{ message.role }}">
+                {% if message.role == 'assistant' %}
+                <img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;">
+                {{ message.content }}
+                {% else %}
+                <strong>{{ message.role|title }}:</strong> {{ message.content }}
+                {% endif %}
+            </div>
+            {% endfor %}
+            {% else %}
+            <div style="display: flex; justify-content: center; align-items: center; height: 100%;">
+                <div style="background-color: #FFFACD; border: 5px dashed #FF4500; border-radius: 20px; padding: 30px; text-align: center; max-width: 400px;">
+                    <img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:120px; height:120px; border-radius:50%; margin-bottom: 20px; border: 3px dashed #4682B4;">
+                    <div style="font-size: 1.4em; color: #FF4500; font-weight: bold;">Select a chat session or start a new one!</div>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+        {% if current_session %}
+        <div class="input-group p-3">
+            <input type="text" id="message" class="form-control" placeholder="Ask Dr. Pato about potato diseases...">
+            <button class="btn btn-primary" onclick="sendMessage()">Send</button>
+        </div>
+        <script>
+            function sendMessage() {
+                const message = document.getElementById('message').value;
+                if (!message) return;
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.innerHTML += `<div class="message user"><strong>User:</strong> ${message}</div>`;
+                document.getElementById('message').value = '';
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                fetch('{% url "chat_api" current_session.id %}', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ message })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    messagesDiv.innerHTML += `<div class="message assistant"><img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> ${data.response}</div>`;
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                });
+            }
+            document.getElementById('message').addEventListener('keypress', function(e) {
+                if (e.key === 'Enter') sendMessage();
+            });
+            // Scroll to bottom on load
+            document.addEventListener('DOMContentLoaded', function() {
+                const messagesDiv = document.getElementById('messages');
+                messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            });
+        </script>
+        {% endif %}
+    </div>
+
+    <!-- Delete Confirmation Modal -->
+    <div class="modal fade" id="deleteModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Delete Session</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    Are you sure you want to delete the session "<span id="sessionTitle"></span>"?
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-danger" id="confirmDeleteBtn">Delete</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Rename Modal -->
+    <div class="modal fade" id="renameModal" tabindex="-1">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Rename Session</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <input type="text" id="newTitle" class="form-control" placeholder="Enter new title">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                    <button type="button" class="btn btn-primary" id="confirmRenameBtn">Rename</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let sessionToDelete = null;
+        let sessionToRename = null;
+
+        function confirmDelete(sessionId, sessionTitle) {
+            sessionToDelete = sessionId;
+            document.getElementById('sessionTitle').textContent = sessionTitle;
+            const modal = new bootstrap.Modal(document.getElementById('deleteModal'));
+            modal.show();
+        }
+
+        function renameSession(sessionId, currentTitle) {
+            sessionToRename = sessionId;
+            document.getElementById('newTitle').value = currentTitle;
+            const modal = new bootstrap.Modal(document.getElementById('renameModal'));
+            modal.show();
+        }
+
+        document.getElementById('confirmDeleteBtn').addEventListener('click', function() {
+            if (sessionToDelete) {
+                window.location.href = '{% url "delete_session" 0 %}'.replace('0', sessionToDelete);
+            }
+        });
+
+        document.getElementById('confirmRenameBtn').addEventListener('click', function() {
+            const newTitle = document.getElementById('newTitle').value.trim();
+            if (sessionToRename && newTitle) {
+                fetch('{% url "rename_session" 0 %}'.replace('0', sessionToRename), {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
+                    },
+                    body: JSON.stringify({ title: newTitle })
+                })
+                .then(response => {
+                    if (response.ok) {
+                        location.reload();
+                    }
+                });
+            }
+        });
+    </script>
+</body>
+</html>
