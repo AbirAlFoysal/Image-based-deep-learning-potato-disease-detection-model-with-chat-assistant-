@@ -38,27 +38,8 @@ Remember: You are Dr. Pato. Potato diseases are your life's work."""
         ]
 
     def _get_api_key(self):
-        """Get API key from environment"""
-        import os
-        api_key = os.getenv("GROQ_API_KEY")
-        if not api_key:
-            print("=" * 60)
-            print("DR. PATO - POTATO DISEASE SPECIALIST")
-            print("=" * 60)
-            print("To get your Groq API key:")
-            print("1. Go to: https://console.groq.com")
-            print("2. Sign up/login and create an API key")
-            print("3. Copy key (starts with 'gsk_')")
-            print("=" * 60)
-            
-            api_key = input("Enter your Groq API key: ").strip()
-            
-            # Save to .env file
-            with open(".env", "w") as f:
-                f.write(f"GROQ_API_KEY={api_key}\n")
-            print("✓ Key saved to .env file")
-        
-        return api_key
+        """Get API key - hardcoded"""
+        return os.environ.get("GROQ_API_KEY")
 
     def _format_response(self, text, width=70):
         """Format text for better readability"""
