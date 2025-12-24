@@ -1,37 +1,20 @@
 import os
 import textwrap
 from groq import Groq
+from .rules.potato_rules import SYSTEM_PROMPT, DISEASE_RESPONSES, DEFAULT_RESPONSE
 
 class DrPatoAssistant:
     """AI Assistant specialized in potato diseases only."""
 
     def __init__(self, api_key=None):
         self.api_key = api_key or self._get_api_key()
-        self.client = Groq(api_key=self.api_key)
+        if self.api_key:
+            self.client = Groq(api_key=self.api_key)
+        else:
+            self.client = None
 
         # System prompt to enforce specialization
-        self.system_prompt = """You are Dr. Pato, a world-renowned potato pathologist and disease specialist. Your expertise is EXCLUSIVELY in potato diseases, disorders, and health issues.
-
-STRICT RULES YOU MUST FOLLOW:
-1. ONLY discuss potato diseases, pathogens, disorders, and related agricultural topics
-2. If asked about non-potato topics, respond: "I specialize only in potato diseases. Please ask me about potato blight, scab, wilt, rot, or other potato health issues."
-3. Provide accurate, scientific information about potato diseases
-4. Include Latin names of pathogens when relevant
-5. Offer prevention and treatment advice when appropriate
-6. Keep responses focused and professional
-
-EXAMPLES OF APPROPRIATE TOPICS:
-- Late blight (Phytophthora infestans)
-- Early blight (Alternaria solani)
-- Common scab (Streptomyces scabies)
-- Blackleg and soft rot (Pectobacterium spp.)
-- Potato virus Y (PVY)
-- Potato cyst nematodes
-- Nutrient deficiencies in potatoes
-- Fungicide recommendations for potatoes
-- Disease-resistant potato varieties
-
-Remember: You are Dr. Pato. Potato diseases are your life's work."""
+        self.system_prompt = SYSTEM_PROMPT
 
         self.conversation_history = [
             {"role": "system", "content": self.system_prompt}
@@ -39,7 +22,7 @@ Remember: You are Dr. Pato. Potato diseases are your life's work."""
 
     def _get_api_key(self):
         """Get API key - hardcoded"""
-        return os.environ.get("GROQ_API_KEY")
+        return "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"
 
     def _format_response(self, text, width=70):
         """Format text for better readability"""
@@ -55,12 +38,14 @@ Remember: You are Dr. Pato. Potato diseases are your life's work."""
         })
 
         try:
+            if not self.client:
+                return "AI service not configured. Please set GROQ_API_KEY."
             # Get response from Groq using moonshotai/kimi-k2-instruct
             response = self.client.chat.completions.create(
                 messages=self.conversation_history,
                 model="moonshotai/kimi-k2-instruct",  # Your specified model
                 temperature=0.7,
-                max_tokens=800,
+                max_tokens=300,  # Reduced to prevent token limits
                 top_p=0.95,
             )
 
@@ -101,9 +86,18 @@ Provide:
         """Get treatment for specific disease"""
         return self.chat(f"What are the most effective treatments for {disease_name} in potatoes? Include organic and chemical options.")
 
-    def clear_conversation(self):
-        """Reset conversation history"""
-        self.conversation_history = [
-            {"role": "system", "content": self.system_prompt}
-        ]
-        return "Conversation cleared. I'm ready to discuss potato diseases!"
+    def handle_disease_detection(self, disease_name):
+        """Handle response when disease is detected from image - send to Groq for description"""
+        if disease_name.startswith("Error"):
+            return f"There was an error analyzing the image: {disease_name}. Please try again or describe the symptoms manually."
+        
+        # Create a conversational prompt for Groq
+        prompt = f"""I analyzed a potato leaf image and detected: {disease_name}
+
+Please respond in a friendly, conversational way as Dr. Pato. Keep it brief and natural. Explain what this means for the potato plant in simple terms, then ask if they'd like to know about remedies, prevention, or anything else.
+
+Example style: "Oh, I see some signs of [disease] here. This usually happens when... Would you like me to suggest some treatment options or tell you how to prevent it in the future?"
+
+Be helpful and engaging, not like a textbook.""" 
+        
+        return self.chat(prompt)

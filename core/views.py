@@ -6,7 +6,11 @@ from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
+from django.conf import settings
 import json
+import requests
+import base64
+import io
 from .models import ChatSession, Message
 from .assistant import DrPatoAssistant
 
@@ -84,9 +88,41 @@ def rename_session(request, session_id):
 class ChatAPI(View):
     def post(self, request, session_id):
         session = get_object_or_404(ChatSession, id=session_id, user=request.user)
-        data = json.loads(request.body)
-        user_message = data.get('message')
-        Message.objects.create(session=session, role='user', content=user_message)
+        
+        user_message = request.POST.get('message', '')
+        image_file = request.FILES.get('image')
+        
+        # If image uploaded, detect disease first
+        disease_result = None
+        if image_file:
+            try:
+                # Convert image to base64 as per requirement
+                image_data = image_file.read()
+                image_base64 = base64.b64encode(image_data).decode('utf-8')
+                print(f"Sending base64 image, length: {len(image_base64)}")
+                
+                # Call FastAPI with base64
+                payload = {"image": image_base64}
+                print(f"Payload keys: {list(payload.keys())}")
+                response = requests.post('http://127.0.0.1:8001/predict_base64', json=payload)
+                print(f"FastAPI response status: {response.status_code}")
+                print(f"FastAPI response: {response.text}")
+                if response.status_code == 200:
+                    disease_result = response.json().get('disease')
+                    print(f"Detected disease: {disease_result}")
+                else:
+                    disease_result = "Error detecting disease"
+            except Exception as e:
+                print(f"Error calling FastAPI: {e}")
+                disease_result = f"Error: {str(e)}"
+        
+        # Create user message
+        message = Message.objects.create(session=session, role='user', content=user_message)
+        if image_file:
+            # Reset file pointer for saving
+            image_file.seek(0)
+            message.image = image_file
+            message.save()
         
         # Create assistant instance
         assistant = DrPatoAssistant()
@@ -96,8 +132,19 @@ class ChatAPI(View):
         for msg in messages:
             assistant.conversation_history.append({"role": msg.role, "content": msg.content})
         
-        response = assistant.chat(user_message)
-        Message.objects.create(session=session, role='assistant', content=response)
+        # If disease detected from image, handle it
+        if disease_result:
+            response_content = assistant.handle_disease_detection(disease_result)
+        else:
+            response_content = assistant.chat(user_message)
+        
+        Message.objects.create(session=session, role='assistant', content=response_content)
+        
+        # Auto-rename if this is the first assistant message
+        if Message.objects.filter(session=session, role='assistant').count() == 1:
+            session.title = ' '.join(response_content.split()[:5])
+            session.save()
+        return JsonResponse({'response': response_content})
         # Auto-rename if this is the first assistant message
         if Message.objects.filter(session=session, role='assistant').count() == 1:
             session.title = ' '.join(response.split()[:5])

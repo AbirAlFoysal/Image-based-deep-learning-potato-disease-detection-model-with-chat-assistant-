@@ -7,3 +7,4 @@ keras==3.5.0
 numpy
 pillow
 python-multipart
+requests

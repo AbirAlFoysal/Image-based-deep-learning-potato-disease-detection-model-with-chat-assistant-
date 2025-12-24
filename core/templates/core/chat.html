@@ -21,6 +21,16 @@
         .dropdown-menu { min-width: 100px; }
         .input-group { border: 5px dashed #4682B4; padding: 10px; background-color: #E0FFFF; border-radius: 15px; }
         .btn-primary { background-color: #4682B4; border-color: #4682B4; border-radius: 10px; }
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(5, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { color: rgba(0,0,0,0); text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+            40% { color: #000; text-shadow: .25em 0 0 rgba(0,0,0,0), .5em 0 0 rgba(0,0,0,0); }
+            60% { text-shadow: .25em 0 0 #000, .5em 0 0 rgba(0,0,0,0); }
+            80%, 100% { text-shadow: .25em 0 0 #000, .5em 0 0 #000; }
+        }
     </style>
 </head>
 <body>
@@ -65,7 +75,13 @@
                 <img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;">
                 {{ message.content }}
                 {% else %}
-                <strong>{{ message.role|title }}:</strong> {{ message.content }}
+                {% if message.content %}
+                <strong>User:</strong> {{ message.content }}
+                {% endif %}
+                {% if message.image %}
+                {% if message.content %}<br>{% endif %}
+                <img src="{{ message.image.url }}" alt="Uploaded image" style="max-width:150px; max-height:150px; border:2px solid #4682B4; border-radius:10px; margin-top:5px;">
+                {% endif %}
                 {% endif %}
             </div>
             {% endfor %}
@@ -80,32 +96,73 @@
         </div>
         {% if current_session %}
         <div class="input-group p-3">
+            <input type="file" id="image" class="form-control" accept="image/*" style="display: none;">
+            <img id="image-preview" src="" alt="Image preview" style="max-width:100px; max-height:100px; display:none; margin-right:10px; border:2px solid #4682B4; border-radius:10px;">
             <input type="text" id="message" class="form-control" placeholder="Ask Dr. Pato about potato diseases...">
+            <button class="btn btn-secondary" onclick="document.getElementById('image').click()">📷</button>
             <button class="btn btn-primary" onclick="sendMessage()">Send</button>
         </div>
         <script>
             function sendMessage() {
                 const message = document.getElementById('message').value;
-                if (!message) return;
+                const image = document.getElementById('image').files[0];
+                if (!message && !image) return;
+                
                 const messagesDiv = document.getElementById('messages');
-                messagesDiv.innerHTML += `<div class="message user"><strong>User:</strong> ${message}</div>`;
+                
+                // Add user message
+                let userMessageHtml = '<div class="message user"><strong>User:</strong> ';
+                if (message) userMessageHtml += message;
+                userMessageHtml += '</div>';
+                messagesDiv.innerHTML += userMessageHtml;
+                
+                // Clear inputs
                 document.getElementById('message').value = '';
+                document.getElementById('image').value = '';
+                document.getElementById('image-preview').style.display = 'none';
+                
+                // Add loading assistant message
+                const loadingId = 'loading-' + Date.now();
+                messagesDiv.innerHTML += `<div class="message assistant" id="${loadingId}"><img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> <span class="loading-dots">Analyzing...</span></div>`;
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
+
+                // Prepare form data
+                const formData = new FormData();
+                if (message) formData.append('message', message);
+                if (image) formData.append('image', image);
 
                 fetch('{% url "chat_api" current_session.id %}', {
                     method: 'POST',
                     headers: { 
-                        'Content-Type': 'application/json',
                         'X-CSRFToken': document.querySelector('meta[name="csrf-token"]').getAttribute('content')
                     },
-                    body: JSON.stringify({ message })
+                    body: formData
                 })
                 .then(response => response.json())
                 .then(data => {
-                    messagesDiv.innerHTML += `<div class="message assistant"><img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> ${data.response}</div>`;
+                    // Replace loading with actual response
+                    document.getElementById(loadingId).innerHTML = `<img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> ${data.response}`;
                     messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                })
+                .catch(error => {
+                    document.getElementById(loadingId).innerHTML = `<img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> Sorry, there was an error processing your request.`;
                 });
             }
+
+            // Image preview
+            document.getElementById('image').addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = function(e) {
+                        document.getElementById('image-preview').src = e.target.result;
+                        document.getElementById('image-preview').style.display = 'block';
+                    };
+                    reader.readAsDataURL(file);
+                } else {
+                    document.getElementById('image-preview').style.display = 'none';
+                }
+            });
             document.getElementById('message').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') sendMessage();
             });
