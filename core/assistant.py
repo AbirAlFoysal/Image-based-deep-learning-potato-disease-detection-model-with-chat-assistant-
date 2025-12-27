@@ -22,7 +22,7 @@ class DrPatoAssistant:
 
     def _get_api_key(self):
         """Get API key - hardcoded"""
-        return "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"
+        return os.environ.get('GROQ_API_KEY')
 
     def _format_response(self, text, width=70):
         """Format text for better readability"""
@@ -86,18 +86,21 @@ Provide:
         """Get treatment for specific disease"""
         return self.chat(f"What are the most effective treatments for {disease_name} in potatoes? Include organic and chemical options.")
 
-    def handle_disease_detection(self, disease_name):
+    def handle_disease_detection(self, disease_name, image_type='leaf'):
         """Handle response when disease is detected from image - send to Groq for description"""
         if disease_name.startswith("Error"):
             return f"There was an error analyzing the image: {disease_name}. Please try again or describe the symptoms manually."
         
+        # Clean up disease name for tuber diseases (remove Potato___ prefix)
+        if image_type == 'tuber' and disease_name.startswith('Potato___'):
+            disease_name = disease_name.replace('Potato___', '').replace('_', ' ').title()
+        
         # Create a conversational prompt for Groq
-        prompt = f"""I analyzed a potato leaf image and detected: {disease_name}
+        prompt = f"""I analyzed a potato {image_type} image and detected: {disease_name}
 
 Please respond in a friendly, conversational way as Dr. Pato. Keep it brief and natural. Explain what this means for the potato plant in simple terms, then ask if they'd like to know about remedies, prevention, or anything else.
 
 Example style: "Oh, I see some signs of [disease] here. This usually happens when... Would you like me to suggest some treatment options or tell you how to prevent it in the future?"
-
 Be helpful and engaging, not like a textbook.""" 
         
         return self.chat(prompt)
