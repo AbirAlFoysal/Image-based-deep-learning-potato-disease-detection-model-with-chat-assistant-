@@ -93,13 +93,11 @@ class ChatAPI(View):
         image_file = request.FILES.get('image')
         image_type = request.POST.get('image_type')  # 'leaf' or 'tuber'
         
-        # Check if user is responding to image type clarification
         image_type = None
         is_clarification_response = False
         
         if user_message.lower().strip() in ['tuber', 'leaf']:
             image_type = user_message.lower().strip()
-            # Check if there's a pending image analysis
             last_assistant_message = Message.objects.filter(
                 session=session, 
                 role='assistant'
@@ -108,24 +106,19 @@ class ChatAPI(View):
             if last_assistant_message and ('tuber' in last_assistant_message.content.lower() or 'leaf' in last_assistant_message.content.lower()):
                 is_clarification_response = True
         
-        # If image uploaded but no type specified, ask for clarification
         if image_file and not image_type:
             response_content = "I see you've uploaded an image! Is this a potato tuber or a potato leaf/plant? Please reply with 'tuber' or 'leaf' to analyze it."
             
-            # Create user message with image
             message = Message.objects.create(session=session, role='user', content=user_message)
             message.image = image_file
             message.save()
             
-            # Create assistant response asking for clarification
             Message.objects.create(session=session, role='assistant', content=response_content)
             
             return JsonResponse({'response': response_content, 'needs_clarification': True})
         
-        # Handle disease detection for specified image type
         disease_result = None
         if image_type and is_clarification_response:
-            # Find the last message with an image in this session
             last_image_message = Message.objects.filter(
                 session=session, 
                 role='user', 
@@ -134,12 +127,10 @@ class ChatAPI(View):
             
             if last_image_message and last_image_message.image:
                 try:
-                    # Read the image from the message
                     with last_image_message.image.open() as img_file:
                         image_data = img_file.read()
                         image_base64 = base64.b64encode(image_data).decode('utf-8')
                     
-                    # Call appropriate API based on type
                     api_endpoint = 'predict_leaf_base64' if image_type == 'leaf' else 'predict_tuber_base64'
                     payload = {"image": image_base64}
                     response = requests.post(f'http://127.0.0.1:8001/{api_endpoint}', json=payload)
@@ -155,7 +146,6 @@ class ChatAPI(View):
                 except Exception as e:
                     disease_result = f"Error: {str(e)}"
         
-        # Create user message
         message = Message.objects.create(session=session, role='user', content=user_message)
         if image_file and not image_type:
             message.image = image_file
@@ -169,7 +159,6 @@ class ChatAPI(View):
         for msg in messages:
             assistant.conversation_history.append({"role": msg.role, "content": msg.content})
         
-        # If disease detected, handle it
         if disease_result:
             response_content = assistant.handle_disease_detection(disease_result, image_type)
         else:
@@ -177,7 +166,6 @@ class ChatAPI(View):
         
         Message.objects.create(session=session, role='assistant', content=response_content)
         
-        # Auto-rename if this is the first assistant message
         if Message.objects.filter(session=session, role='assistant').count() == 1:
             session.title = ' '.join(response_content.split()[:5])
             session.save()
