@@ -3,3 +3,4 @@ env
 extras/
 env/
 media/chat_images/
+detection_service/models/extras

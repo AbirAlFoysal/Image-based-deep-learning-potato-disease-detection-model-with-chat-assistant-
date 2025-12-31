@@ -12,11 +12,9 @@ import uvicorn
 import onnxruntime as ort
 import json
 
-# Silence TensorFlow warnings
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
-# Load leaf model
-MODEL_PATH = "./models/efficientnet_potato_leaf_model.keras"
+MODEL_PATH = "./models/efficientnet_potato_leaf_model_final.keras"
 model = load_model(MODEL_PATH)
 
 CLASS_NAMES = [
@@ -30,9 +28,8 @@ CLASS_NAMES = [
 ]
 IMAGE_SIZE = 256
 
-# ONNX Tuber Disease Model Class
 class ONNXPotatoDiseaseModel:
-    def __init__(self, model_path="./models/potato_disease_resnet.onnx"):
+    def __init__(self, model_path="./models/resnet_potato_tuber_model.onnx"):
         self.session = ort.InferenceSession(
             model_path,
             providers=['CPUExecutionProvider']
@@ -64,10 +61,8 @@ class ONNXPotatoDiseaseModel:
         
         return image_array
 
-# Load tuber model
 tuber_model = ONNXPotatoDiseaseModel()
 
-# Prediction functions
 def predict_leaf_disease(image: Image.Image):
     img = image.resize((IMAGE_SIZE, IMAGE_SIZE))
     img_array = tf.keras.preprocessing.image.img_to_array(img)
@@ -100,14 +95,12 @@ def predict_tuber_disease(image: Image.Image, top_k=3):
         'is_healthy': predictions[0]['class'] == 'Potato___healthy' if 'Potato___healthy' in tuber_model.class_names else None
     }
 
-# FastAPI app
 app = FastAPI(title="Potato Disease Detection API")
 
 @app.get("/health")
 async def health_check():
     return {"status": "ok by abir"}
 
-# Leaf Disease Detection Endpoints
 @app.post("/predict_leaf")
 async def predict_leaf(file: UploadFile = File(...)):
     try:
@@ -134,7 +127,6 @@ async def predict_leaf_base64(data: dict = Body(...)):
         print(f"Error: {e}")
         return {"error": str(e)}
 
-# Tuber Disease Detection Endpoints
 @app.post("/predict_tuber")
 async def predict_tuber(file: UploadFile = File(...)):
     try:
@@ -161,6 +153,5 @@ async def predict_tuber_base64(data: dict = Body(...)):
         print(f"Error: {e}")
         return {"error": str(e)}
 
-# Run locally on port 8001
 if __name__ == "__main__":
     uvicorn.run(app, host="127.0.0.1", port=8001)

@@ -1,0 +1,57 @@
+
+===============================================================================
+                    POTATO DISEASE DETECTION - FINAL REPORT
+===============================================================================
+
+PROJECT OVERVIEW:
+-----------------
+Objective: Automated potato disease detection using deep learning
+Model: ResNet50 with transfer learning
+Dataset: Augmented potato disease images
+
+DATASET STATISTICS:
+-------------------
+Total Images: 3465
+Classes: 5
+Training Set: 2772 (80.0%)
+Test Set: 693 (20.0%)
+
+TRAINING CONFIGURATION:
+-----------------------
+Epochs: 30
+Batch Size: 32
+Learning Rate: 0.001
+Optimizer: Adam
+Device: cuda
+Total Time: 1163.06s (19.38 min)
+
+PYTORCH MODEL PERFORMANCE:
+--------------------------
+Best Validation Accuracy: 98.93%
+Test Accuracy: 98.99%
+Avg Precision: 0.9903
+Avg Recall: 0.9910
+Avg F1-Score: 0.9907
+
+ONNX MODEL PERFORMANCE:
+-----------------------
+Test Accuracy: 98.99%
+Avg Inference Time: 1235.66 ms/batch
+Consistency with PyTorch: 0.000000 difference
+
+FILES GENERATED:
+----------------
+1. best_model_checkpoint.pth - Best model checkpoint
+2. potato_disease_resnet50.pth - Complete PyTorch model
+3. potato_disease_model.onnx - ONNX deployment model
+4. training_results.json - Training history
+5. training_summary.csv - Performance metrics
+
+CONCLUSIONS:
+------------
+The ResNet50 model achieves 99.0% accuracy on potato disease
+classification. The ONNX export enables efficient deployment while maintaining
+consistency with the PyTorch model. The system is ready for agricultural
+deployment for real-time disease detection.
+
+===============================================================================
