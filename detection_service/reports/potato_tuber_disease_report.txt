@@ -23,7 +23,7 @@ Batch Size: 32
 Learning Rate: 0.001
 Optimizer: Adam
 Device: cuda
-Total Time: 1163.06s (19.38 min)
+Total Time: 1000.85s (16.68 min)
 
 PYTORCH MODEL PERFORMANCE:
 --------------------------
@@ -36,7 +36,7 @@ Avg F1-Score: 0.9907
 ONNX MODEL PERFORMANCE:
 -----------------------
 Test Accuracy: 98.99%
-Avg Inference Time: 1235.66 ms/batch
+Avg Inference Time: 1385.51 ms/batch
 Consistency with PyTorch: 0.000000 difference
 
 FILES GENERATED:
