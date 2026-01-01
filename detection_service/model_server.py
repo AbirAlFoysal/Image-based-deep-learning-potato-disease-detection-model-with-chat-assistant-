@@ -29,7 +29,7 @@ CLASS_NAMES = [
 IMAGE_SIZE = 256
 
 class ONNXPotatoDiseaseModel:
-    def __init__(self, model_path="./models/resnet_potato_tuber_model.onnx"):
+    def __init__(self, model_path="./models/resnet_tuber_disease_model.onnx"):
         self.session = ort.InferenceSession(
             model_path,
             providers=['CPUExecutionProvider']

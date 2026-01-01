@@ -15,7 +15,7 @@ source env/Scripts/activate
 
 # Start leaf API in background
 cd detection_service || { echo "detection_service not found"; exit 1; }
-python leaf_api_app.py &
+python model_server.py &
 
 # Start Django server
 cd ..
