@@ -1,4 +1,4 @@
-# Snippet 2: Load ONNX model (FIXED VERSION)
+
 """
 Save this as 'load_onnx_model.py'
 Requirements: pip install onnxruntime Pillow numpy
@@ -17,111 +17,65 @@ class ONNXPotatoDiseaseModel:
         Args:
             model_path: Path to .onnx model file
         """
-        # Load ONNX model with optimized providers
         self.session = ort.InferenceSession(
             model_path,
-            providers=['CPUExecutionProvider']  # Use CPU only
+            providers=['CPUExecutionProvider']  
         )
-        
-        # Get input name from model
         self.input_name = self.session.get_inputs()[0].name
-        
-        # Load class names
         class_names_path = model_path.replace('.onnx', '_classes.json')
         with open(class_names_path, 'r') as f:
             self.class_names = json.load(f)
-        
-        # Load transform info
         transform_path = model_path.replace('.onnx', '_transform.json')
         with open(transform_path, 'r') as f:
             self.transform_info = json.load(f)
-        
         print(f"✓ Model loaded: {model_path}")
         print(f"✓ Input name: {self.input_name}")
         print(f"✓ Classes: {self.class_names}")
         print(f"✓ Input size: {self.transform_info['input_size']}")
-    
     def preprocess_image(self, image_path):
         """
         Preprocess image for model input with proper float32 conversion.
         """
-        # Load image
         image = Image.open(image_path).convert('RGB')
-        
-        # Resize and crop - simpler method
         from PIL import Image as PILImage
         target_size = self.transform_info['input_size']
-        
-        # Resize maintaining aspect ratio
         image = image.resize((target_size, target_size))
-        
-        # Convert to numpy array and normalize
         image_array = np.array(image).astype(np.float32) / 255.0
-        
-        # Normalize with mean and std
         mean = np.array(self.transform_info['mean'], dtype=np.float32).reshape(1, 1, 3)
         std = np.array(self.transform_info['std'], dtype=np.float32).reshape(1, 1, 3)
-        
-        # Normalize (image is in HWC format)
         image_array = (image_array - mean) / std
-        
-        # Change from HWC to CHW format (PyTorch format)
         image_array = np.transpose(image_array, (2, 0, 1))
-        
-        # Add batch dimension
         image_array = np.expand_dims(image_array, axis=0)
-        
-        # Ensure it's float32
         image_array = image_array.astype(np.float32)
-        
         return image_array, image
-    
-
-
-# from load_onnx_model import ONNXPotatoDiseaseModel
 
 model = ONNXPotatoDiseaseModel(
     model_path="G:\\python\\python 2025\\thesis\\tazrin\\app\\detection_service\\models\\potato_disease_resnet.onnx"
 )
 
-
-# Snippet 3: Make predictions with ONNX model (FIXED VERSION)
-
 def predict_image_onnx(model, image_path, top_k=3):
     """
     Make prediction on a single image.
-    
     Args:
         model: ONNXPotatoDiseaseModel instance
         image_path: Path to image file
         top_k: Return top k predictions
-    
     Returns:
         Dictionary with predictions
     """
-    # Preprocess image
     input_array, original_image = model.preprocess_image(image_path)
     
-    # Debug: Check data type and shape
     print(f"Input shape: {input_array.shape}")
     print(f"Input dtype: {input_array.dtype}")
     print(f"Input range: [{input_array.min():.3f}, {input_array.max():.3f}]")
     
-    # Run inference - FIXED: use correct input name and ensure float32
     outputs = model.session.run(None, {model.input_name: input_array})
-    logits = outputs[0][0]  # Remove batch dimension
-    
+    logits = outputs[0][0]  
     print(f"Logits shape: {logits.shape}")
-    
-    # Convert to probabilities using softmax (numerically stable)
     max_logits = np.max(logits)
     exp_logits = np.exp(logits - max_logits)
     probabilities = exp_logits / np.sum(exp_logits)
-    
-    # Get top k predictions
     top_indices = np.argsort(probabilities)[-top_k:][::-1]
-    
-    # Prepare results
     predictions = []
     for idx in top_indices:
         predictions.append({
@@ -146,22 +100,14 @@ def predict_and_display(model, image_path):
         image_path: Path to image file
     """
     import matplotlib.pyplot as plt
-    
-    # Get prediction
     result = predict_image_onnx(model, image_path)
-    
-    # Display image
     image = Image.open(image_path)
-    
     plt.figure(figsize=(10, 8))
-    
-    # Show image
     plt.subplot(2, 1, 1)
     plt.imshow(image)
     plt.title(f"Prediction: {result['top_prediction']['class']}")
     plt.axis('off')
     
-    # Show confidence bars
     plt.subplot(2, 1, 2)
     classes = [p['class'].replace('Potato___', '') for p in result['all_predictions']]
     confidences = [p['confidence'] * 100 for p in result['all_predictions']]
@@ -171,7 +117,7 @@ def predict_and_display(model, image_path):
     plt.title('Top Predictions')
     plt.xlim([0, 100])
     
-    # Add percentage labels
+    
     for bar, conf in zip(bars, confidences):
         plt.text(bar.get_width() - 1, bar.get_y() + bar.get_height()/2,
                 f'{conf:.1f}%', va='center', ha='right', color='white', fontweight='bold')
