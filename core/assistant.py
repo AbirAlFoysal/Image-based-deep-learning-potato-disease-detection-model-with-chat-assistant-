@@ -1,7 +1,14 @@
 import os
 import textwrap
 from groq import Groq
-from .rules.potato_rules import SYSTEM_PROMPT, DISEASE_RESPONSES, DEFAULT_RESPONSE
+from .config import Config
+from .rules import (
+    get_system_prompt,
+    get_diagnosis_prompt,
+    get_treatment_prompt,
+    get_common_diseases_prompt,
+    get_disease_detection_prompt
+)
 
 class DrPatoAssistant:
 
@@ -12,14 +19,14 @@ class DrPatoAssistant:
         else:
             self.client = None
 
-        self.system_prompt = SYSTEM_PROMPT
+        self.system_prompt = get_system_prompt()
 
         self.conversation_history = [
             {"role": "system", "content": self.system_prompt}
         ]
 
     def _get_api_key(self):
-        return os.environ.get('GROQ_API_KEY')
+        return Config.get_groq_api_key_safe()
 
     def _format_response(self, text, width=70):
         return textwrap.fill(text, width=width)
@@ -55,37 +62,18 @@ class DrPatoAssistant:
             return error_msg
 
     def diagnose_potato(self, symptoms):
-        prompt = f"""As Dr. Pato, analyze these potato symptoms and provide a diagnosis:
-
-Symptoms: {symptoms}
-
-Provide:
-1. Likely disease(s) with scientific names
-2. Primary symptoms match
-3. Recommended laboratory tests for confirmation
-4. Immediate management steps
-5. Prevention for next season"""
-
+        prompt = get_diagnosis_prompt(symptoms)
         return self.chat(prompt)
 
     def list_common_diseases(self):
-        return self.chat("List the 10 most common potato diseases worldwide with their scientific names and primary symptoms.")
+        return self.chat(get_common_diseases_prompt())
 
     def get_treatment(self, disease_name):
-        return self.chat(f"What are the most effective treatments for {disease_name} in potatoes? Include organic and chemical options.")
+        return self.chat(get_treatment_prompt(disease_name))
 
     def handle_disease_detection(self, disease_name, image_type='leaf'):
         if disease_name.startswith("Error"):
             return f"There was an error analyzing the image: {disease_name}. Please try again or describe the symptoms manually."
         
-        if image_type == 'tuber' and disease_name.startswith('Potato___'):
-            disease_name = disease_name.replace('Potato___', '').replace('_', ' ').title()
-        
-        prompt = f"""I analyzed a potato {image_type} image and detected: {disease_name}
-
-Please respond in a friendly, conversational way as Dr. Pato. Keep it brief and natural. Explain what this means for the potato plant in simple terms, then ask if they'd like to know about remedies, prevention, or anything else.
-
-Example style: "Oh, I see some signs of [disease] here. This usually happens when... Would you like me to suggest some treatment options or tell you how to prevent it in the future?"
-Be helpful and engaging, not like a textbook.""" 
-        
+        prompt = get_disease_detection_prompt(disease_name, image_type)
         return self.chat(prompt)
