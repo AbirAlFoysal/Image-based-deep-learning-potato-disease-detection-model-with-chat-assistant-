@@ -13,12 +13,7 @@ fi
 # Activate virtual environment
 source env/Scripts/activate
 
-# Start leaf API in background
-cd detection_service || { echo "detection_service not found"; exit 1; }
-python model_server.py &
-
 # Start Django server
-cd ..
 python manage.py runserver &
 
 # Optional: keep script alive (e.g., for logs)

@@ -8,11 +8,12 @@ from django.utils.decorators import method_decorator
 from django.views import View
 from django.conf import settings
 import json
-import requests
 import base64
 import io
+from PIL import Image
 from .models import ChatSession, Message
 from .assistant import DrPatoAssistant
+from .disease_detection_service import predict_leaf_disease, predict_tuber_disease
 
 assistant = DrPatoAssistant()
 
@@ -131,18 +132,15 @@ class ChatAPI(View):
                         image_data = img_file.read()
                         image_base64 = base64.b64encode(image_data).decode('utf-8')
                     
-                    api_endpoint = 'predict_leaf_base64' if image_type == 'leaf' else 'predict_tuber_base64'
-                    payload = {"image": image_base64}
-                    response = requests.post(f'http://127.0.0.1:8001/{api_endpoint}', json=payload)
+                    # Decode base64 to image
+                    img_bytes = base64.b64decode(image_base64)
+                    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
                     
-                    if response.status_code == 200:
-                        api_result = response.json()
-                        if image_type == 'leaf':
-                            disease_result = api_result.get('disease')
-                        else:  # tuber
-                            disease_result = api_result.get('top_prediction', {}).get('class', 'Unknown')
-                    else:
-                        disease_result = "Error detecting disease"
+                    if image_type == 'leaf':
+                        disease_result = predict_leaf_disease(image)
+                    else:  # tuber
+                        result = predict_tuber_disease(image)
+                        disease_result = result.get('top_prediction', {}).get('class', 'Unknown')
                 except Exception as e:
                     disease_result = f"Error: {str(e)}"
         
