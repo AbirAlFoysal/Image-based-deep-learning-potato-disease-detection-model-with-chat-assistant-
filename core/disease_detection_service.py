@@ -66,7 +66,7 @@ class ONNXPotatoDiseaseModel:
 def load_models():
     global leaf_model, tuber_model
     if leaf_model is None:
-        leaf_model = load_model(LEAF_MODEL_PATH)
+        leaf_model = load_model(LEAF_MODEL_PATH, compile=False)
         print("✓ Leaf model loaded")
     if tuber_model is None:
         tuber_model = ONNXPotatoDiseaseModel(TUBER_MODEL_PATH)
