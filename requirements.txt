@@ -2,8 +2,8 @@ django
 groq
 fastapi
 uvicorn
-# tensorflow
-# keras
+tensorflow
+keras
 numpy
 pillow
 python-multipart
