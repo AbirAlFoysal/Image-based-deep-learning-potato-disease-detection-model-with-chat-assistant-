@@ -73,7 +73,7 @@ class DrPatoAssistant:
 
     def handle_disease_detection(self, disease_name, image_type='leaf'):
         if disease_name.startswith("Error"):
-            return f"There was an error analyzing the image: {disease_name}. Please try again or describe the symptoms manually."
+            return "I couldn't analyze that image right now. Please try again or describe the symptoms manually."
         
         prompt = get_disease_detection_prompt(disease_name, image_type)
         return self.chat(prompt)

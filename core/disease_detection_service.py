@@ -1,13 +1,11 @@
 import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import json
 import numpy as np
 from PIL import Image
 import tensorflow as tf
 from keras.models import load_model
 import onnxruntime as ort
-
-# Set TensorFlow logging level
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 # Model paths (relative to the app directory)
 MODEL_DIR = os.path.join(os.path.dirname(__file__), '..', 'detection_service', 'models')
@@ -46,7 +44,7 @@ class ONNXPotatoDiseaseModel:
         with open(transform_path, 'r') as f:
             self.transform_info = json.load(f)
 
-        print(f"✓ Tuber Model loaded: {model_path}")
+        print(f"Tuber model loaded: {model_path}")
 
     def preprocess_image(self, image: Image.Image):
         target_size = self.transform_info['input_size']
@@ -67,10 +65,10 @@ def load_models():
     global leaf_model, tuber_model
     if leaf_model is None:
         leaf_model = load_model(LEAF_MODEL_PATH, compile=False)
-        print("✓ Leaf model loaded")
+        print("Leaf model loaded")
     if tuber_model is None:
         tuber_model = ONNXPotatoDiseaseModel(TUBER_MODEL_PATH)
-        print("✓ Tuber model loaded")
+        print("Tuber model loaded")
 
 def predict_leaf_disease(image: Image.Image):
     load_models()

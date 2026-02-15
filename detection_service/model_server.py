@@ -5,14 +5,13 @@ from PIL import Image
 import numpy as np
 import io
 import os
+os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 import base64
 import tensorflow as tf
 from keras.models import load_model
 import uvicorn
 import onnxruntime as ort
 import json
-
-os.environ["TF_CPP_MIN_LOG_LEVEL"] = "2"
 
 MODEL_PATH = "./models/efficientnet_potato_leaf_model_final.keras"
 model = load_model(MODEL_PATH)
@@ -44,7 +43,7 @@ class ONNXPotatoDiseaseModel:
         with open(transform_path, 'r') as f:
             self.transform_info = json.load(f)
         
-        print(f"✓ Tuber Model loaded: {model_path}")
+        print(f"Tuber model loaded: {model_path}")
     
     def preprocess_image(self, image: Image.Image):
         target_size = self.transform_info['input_size']
