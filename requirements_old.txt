@@ -4,12 +4,5 @@ groq
 
 numpy
 Pillow
-tensorflow
-keras
 onnxruntime
 
-fastapi
-uvicorn
-python-multipart
-
-gunicorn

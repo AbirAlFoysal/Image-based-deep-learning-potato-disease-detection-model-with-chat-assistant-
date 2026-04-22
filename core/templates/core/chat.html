@@ -98,7 +98,7 @@
         <div class="input-group p-3">
             <input type="file" id="image" class="form-control" accept="image/*" style="display: none;">
             <img id="image-preview" src="" alt="Image preview" style="max-width:100px; max-height:100px; display:none; margin-right:10px; border:2px solid #4682B4; border-radius:10px;">
-            <input type="text" id="message" class="form-control" placeholder="Ask Dr. Pato about potato diseases...">
+            <input type="text" id="message" class="form-control" placeholder="Ask Dr. Pato about potato tuber diseases...">
             <button class="btn btn-secondary" onclick="document.getElementById('image').click()">📷</button>
             <button class="btn btn-primary" onclick="sendMessage()">Send</button>
         </div>
@@ -111,8 +111,14 @@
                 const messagesDiv = document.getElementById('messages');
                 
                 // Add user message
-                let userMessageHtml = '<div class="message user"><strong>User:</strong> ';
-                if (message) userMessageHtml += message;
+                let userMessageHtml = '<div class="message user">';
+                if (message) {
+                    userMessageHtml += `<strong>User:</strong> ${message}`;
+                }
+                if (image) {
+                    if (message) userMessageHtml += '<br>';
+                    userMessageHtml += `<div style="margin-top:5px;"><strong>Image:</strong> ${image.name}</div>`;
+                }
                 userMessageHtml += '</div>';
                 messagesDiv.innerHTML += userMessageHtml;
                 
@@ -123,7 +129,8 @@
                 
                 // Add loading assistant message
                 const loadingId = 'loading-' + Date.now();
-                messagesDiv.innerHTML += `<div class="message assistant" id="${loadingId}"><img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> <span class="loading-dots">Analyzing...</span></div>`;
+                const loadingText = image ? 'Analyzing tuber image...' : 'Thinking...';
+                messagesDiv.innerHTML += `<div class="message assistant" id="${loadingId}"><img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:30px; height:30px; border-radius:50%; margin-right:10px;"> <span class="loading-dots">${loadingText}</span></div>`;
                 messagesDiv.scrollTop = messagesDiv.scrollHeight;
 
                 // Prepare form data

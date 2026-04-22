@@ -21,4 +21,4 @@ def get_image_analysis_encouragement():
     Returns:
         str: A response encouraging users to upload images
     """
-    return "Yes, I can analyze potato plant images! Please upload a clear photo of the affected potato leaves or tubers, and I'll help identify any diseases or issues."
+    return "Yes, I can analyze potato tuber images. Please upload a clear photo of the affected tuber, and I'll help identify possible diseases or damage."
