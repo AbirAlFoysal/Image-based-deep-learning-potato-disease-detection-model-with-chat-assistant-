@@ -1,0 +1,8 @@
+Django
+python-decouple
+groq
+
+numpy
+Pillow
+onnxruntime
+

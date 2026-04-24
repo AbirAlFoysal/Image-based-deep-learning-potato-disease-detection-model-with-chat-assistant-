@@ -27,6 +27,11 @@
                 <img src="/media/ui_images/avatar.png" alt="Dr. Pato" style="width:80px; height:80px; border-radius:50%; border: 3px dashed #4682B4;">
             </div>
             <h2 class="text-center mb-4">Login to Dr. Pato</h2>
+            {% if messages %}
+                {% for message in messages %}
+                    <div class="alert alert-danger" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
             <form method="post">
                 {% csrf_token %}
                 <div class="mb-3">

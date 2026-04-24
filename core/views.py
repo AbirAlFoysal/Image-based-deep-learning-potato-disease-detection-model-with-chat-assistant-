@@ -2,20 +2,15 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.forms import UserCreationForm
 from django.contrib.auth.decorators import login_required
+from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
 from django.views import View
-from django.conf import settings
 import json
-import base64
-import io
 from PIL import Image
 from .models import ChatSession, Message
 from .assistant import DrPatoAssistant
-from .disease_detection_service import predict_leaf_disease, predict_tuber_disease
-
-assistant = DrPatoAssistant()
 
 def home(request):
     if request.user.is_authenticated:
@@ -38,13 +33,17 @@ def register(request):
     return render(request, 'core/register.html', {'form': form})
 
 def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('home')
+
     if request.method == 'POST':
-        username = request.POST['username']
-        password = request.POST['password']
+        username = request.POST.get('username', '').strip()
+        password = request.POST.get('password', '')
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            return redirect('chat')
+            return redirect('home')
+        messages.error(request, "Invalid username or password.")
     return render(request, 'core/login.html')
 
 def logout_view(request):
@@ -76,7 +75,6 @@ def delete_session(request, session_id):
 @login_required
 def rename_session(request, session_id):
     if request.method == 'POST':
-        import json
         data = json.loads(request.body)
         new_title = data.get('title')
         session = get_object_or_404(ChatSession, id=session_id, user=request.user)
@@ -92,62 +90,22 @@ class ChatAPI(View):
         
         user_message = request.POST.get('message', '')
         image_file = request.FILES.get('image')
-        image_type = request.POST.get('image_type')  # 'leaf' or 'tuber'
-        
-        image_type = None
-        is_clarification_response = False
-        
-        if user_message.lower().strip() in ['tuber', 'leaf']:
-            image_type = user_message.lower().strip()
-            last_assistant_message = Message.objects.filter(
-                session=session, 
-                role='assistant'
-            ).order_by('-timestamp').first()
-            
-            if last_assistant_message and ('tuber' in last_assistant_message.content.lower() or 'leaf' in last_assistant_message.content.lower()):
-                is_clarification_response = True
-        
-        if image_file and not image_type:
-            response_content = "I see you've uploaded an image! Is this a potato tuber or a potato leaf/plant? Please reply with 'tuber' or 'leaf' to analyze it."
-            
-            message = Message.objects.create(session=session, role='user', content=user_message)
-            message.image = image_file
-            message.save()
-            
-            Message.objects.create(session=session, role='assistant', content=response_content)
-            
-            return JsonResponse({'response': response_content, 'needs_clarification': True})
-        
+
         disease_result = None
-        if image_type and is_clarification_response:
-            last_image_message = Message.objects.filter(
-                session=session, 
-                role='user', 
-                image__isnull=False
-            ).order_by('-timestamp').first()
-            
-            if last_image_message and last_image_message.image:
-                try:
-                    with last_image_message.image.open() as img_file:
-                        image_data = img_file.read()
-                        image_base64 = base64.b64encode(image_data).decode('utf-8')
-                    
-                    # Decode base64 to image
-                    img_bytes = base64.b64decode(image_base64)
-                    image = Image.open(io.BytesIO(img_bytes)).convert("RGB")
-                    
-                    if image_type == 'leaf':
-                        disease_result = predict_leaf_disease(image)
-                    else:  # tuber
-                        result = predict_tuber_disease(image)
-                        disease_result = result.get('top_prediction', {}).get('class', 'Unknown')
-                except Exception as e:
-                    disease_result = f"Error: {str(e)}"
-        
         message = Message.objects.create(session=session, role='user', content=user_message)
-        if image_file and not image_type:
+        if image_file:
             message.image = image_file
             message.save()
+
+            try:
+                from .disease_detection_service import predict_tuber_disease
+
+                with message.image.open('rb') as img_file:
+                    image = Image.open(img_file).convert("RGB")
+                    result = predict_tuber_disease(image)
+                    disease_result = result.get('top_prediction', {}).get('class', 'Unknown')
+            except Exception as e:
+                disease_result = f"Error: {str(e)}"
         
         # Create assistant instance
         assistant = DrPatoAssistant()
@@ -158,7 +116,7 @@ class ChatAPI(View):
             assistant.conversation_history.append({"role": msg.role, "content": msg.content})
         
         if disease_result:
-            response_content = assistant.handle_disease_detection(disease_result, image_type)
+            response_content = assistant.handle_disease_detection(disease_result)
         else:
             response_content = assistant.chat(user_message)
         

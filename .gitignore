@@ -4,3 +4,7 @@ extras/
 env/
 media/chat_images/
 detection_service/models/extras
+__pycache__/
+*.py[cod]
+
+venv/
